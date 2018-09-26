@@ -1,0 +1,77 @@
+<?php
+
+/**
+ * Implements hook_menu().
+ */
+function pac12_videos_menu() {
+  $items['admin/config/pac12-videos'] = array(
+    'title' => 'Settings',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('pac12_videos_admin_settings'),
+    'access arguments' => array('administer site configuration'),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 8,
+  );
+
+  $items['vods'] = array(
+    'title' => 'VODs',
+    'page callback' => 'pac12_videos_vods',
+    'access arguments' => array('access content'),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 2,
+  );
+
+  return $items;
+}
+
+/**
+ * Main callback function for VOD listings
+ */
+function pac12_videos_vods() {
+  drupal_add_js(drupal_get_path('module', 'pac12_videos') . '/js/pac12_videos.js');
+
+  return '<div class="vods"></div><div class="throbber"></div>';
+}
+
+/**
+ * Form constructor for the PAC12 Video settings form.
+ */
+function pac12_videos_admin_settings() {
+  $form['pac12_videos_items_per_page'] = array(
+    '#type' => 'textfield',
+    '#title' => t('VODs per page'),
+    '#default_value' => variable_get('pac12_videos_items_per_page', array('pac12_videos')),
+    '#description' => t('The number of VODs to display per page'),
+    '#required' => TRUE,
+  );
+  $form['pac12_videos_infinite_scroll'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Infinite scroll'),
+    '#default_value' => variable_get('pac12_videos_infinite_scroll', 'pac12_videos'),
+  );
+
+  $json = json_decode(drupal_http_request('http://api.pac-12.com/v3/sports')->data);
+  $sports = array();
+  foreach($json->sports as $i => $v) {
+    $sports[$v->id] = $v->name;
+  }
+  $form['pac12_videos_sport'] = array(
+    '#type' => 'checkboxes',
+    '#title' => t('Sports'),
+    '#default_value' => variable_get('pac12_videos_sport', 'pac12_videos'),
+    '#options' => $sports,
+  );
+
+  $form['#validate'][] = 'pac12_videos_admin_settings_validate';
+
+  return system_settings_form($form);
+}
+
+/**
+ * Form validation handler for pac12_videos_admin_settings().
+ */
+function pac12_videos_admin_settings_validate($form, &$form_state) {
+  if (!is_numeric($form_state['values']['pac12_videos_items_per_page'])) {
+    form_set_error('pac12_videos_items_per_page', t('VODs per page must be numeric'));
+  }
+}
